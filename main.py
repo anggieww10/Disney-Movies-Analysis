@@ -1,232 +1,172 @@
 import streamlit as st
-import base64
-from streamlit_lottie import st_lottie
-import requests
+import pandas as pd
+import plotly.express as px
 
-# Configure page
-st.set_page_config(
-    page_title="Disney Movies Analysis",
-    page_icon="🏰",
-    layout="wide"
-)
+# Load the dataset
+def load_data():
+    data = pd.read_csv('disney_movies.csv')
+    data['release_date'] = pd.to_datetime(data['release_date'], errors='coerce')
+    data['year'] = data['release_date'].dt.year
+    data['genre'] = data['genre'].fillna('Unknown')
+    data['mpaa_rating'] = data['mpaa_rating'].fillna('Not Rated')
+    data['total_gross'] = pd.to_numeric(data['total_gross'], errors='coerce')
+    data['inflation_adjusted_gross'] = pd.to_numeric(data['inflation_adjusted_gross'], errors='coerce')
+    return data
 
-# Custom CSS with refined styling
-st.markdown("""
-    <style>
-    /* Base theme colors */
-    :root {
-        --primary-color: #1a1a2e;
-        --secondary-color: #16213e;
-        --accent-color: #0f3460;
-        --text-color: #ffffff;
-        --shadow-color: rgba(0, 0, 0, 0.2);
-    }
+df = load_data()
 
-    /* Main container */
-    .main .block-container {
-        padding: 2rem !important;
-    }
-
-    /* Background image setup */
-    .stApp {
-        background-image: linear-gradient(
-            rgba(0, 0, 0, 0.7),
-            rgba(0, 0, 0, 0.7)
-        ), url('data:image/jpg;base64,{background_image}');
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-    }
-
-    /* Sidebar styling */
-    section[data-testid="stSidebar"] {
-        background-color: rgba(0, 0, 0, 0.8);
-        backdrop-filter: blur(10px);
-    }
-
-    /* Navigation buttons */
-    .stButton > button {
-        width: 100%;
-        background-color: rgba(255, 255, 255, 0.1) !important;
-        color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: 8px !important;
-        padding: 0.75rem 1.5rem !important;
-        margin: 0.5rem 0 !important;
-        transition: all 0.3s ease !important;
-    }
-
-    .stButton > button:hover {
-        background-color: rgba(255, 255, 255, 0.2) !important;
-        border-color: rgba(255, 255, 255, 0.3) !important;
-        transform: translateY(-2px);
-    }
-
-    /* Logo container */
-    .logo-container {
-        text-align: center;
-        padding: 1rem;
-        margin-bottom: 2rem;
-    }
-
-    .logo-container img {
-        max-width: 150px;
-        margin: 0 auto;
-    }
-
-    /* Title styling */
-    .title-container {
-        text-align: center;
-        margin: 2rem 0;
-        padding: 1rem;
-        background: rgba(0, 0, 0, 0.5);
-        border-radius: 15px;
-        backdrop-filter: blur(5px);
-    }
-
-    /* Card styling */
-    .metric-card {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        color: white;
-        text-align: center;
-        box-shadow: 0 4px 12px var(--shadow-color);
-        transition: transform 0.3s ease;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .metric-card:hover {
-        transform: translateY(-5px);
-        background: rgba(255, 255, 255, 0.15);
-    }
-
-    .metric-value {
-        font-size: 2.5rem;
-        font-weight: bold;
-        margin: 0.5rem 0;
-    }
-
-    .metric-label {
-        font-size: 1.2rem;
-        opacity: 0.9;
-    }
-
-    /* Description text */
-    .description-text {
-        color: white;
-        text-align: center;
-        font-size: 1.2rem;
-        margin: 1.5rem 0;
-        padding: 1.5rem;
-        background: rgba(0, 0, 0, 0.5);
-        border-radius: 10px;
-        backdrop-filter: blur(5px);
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# Function to load and encode background image
-def get_base64_encoded_image(image_path):
-    with open(image_path, "rb") as img_file:
-        return base64.b64encode(img_file.read()).decode()
-
-# Set background image
-background_image = get_base64_encoded_image("assets/background.jpg")
-st.markdown(
-    f"""
-    <style>
-    .stApp {{
-        background-image: linear-gradient(
-            rgba(0, 0, 0, 0.7),
-            rgba(0, 0, 0, 0.7)
-        ), url("data:image/jpg;base64,{background_image}");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# Sidebar
-with st.sidebar:
-    # Logo in sidebar
+# Streamlit App
+def main():
+    st.title("Disney Movies Visualization")
     st.markdown("""
-        <div class="logo-container">
-            <img src="data:image/png;base64,{}" alt="Disney Logo">
-        </div>
-    """.format(get_base64_encoded_image("assets/logo.png")), unsafe_allow_html=True)
-    
-    if st.button("Home", key="home"):
-        st.session_state["page"] = "home"
-    if st.button("Explore Data", key="explore"):
-        st.session_state["page"] = "explore"
-    if st.button("Visualizations", key="viz"):
-        st.session_state["page"] = "viz"
-    if st.button("Insights", key="insights"):
-        st.session_state["page"] = "insights"
+    This application provides an interactive exploration of Disney movies' dataset. 
+    Use the filters and visualizations to explore the data!
+    """)
 
-# Initialize session state
-if "page" not in st.session_state:
-    st.session_state["page"] = "home"
+    # Sidebar for filters
+    st.sidebar.header("Filters")
 
-# Main content
-if st.session_state["page"] == "home":
-    st.markdown("""
-        <div class="title-container">
-            <h1 style="color: white; font-size: 3rem;">Disney Movies Analysis</h1>
-        </div>
-    """, unsafe_allow_html=True)
+    genres = st.sidebar.multiselect(
+        "Select Genre(s):", options=df['genre'].unique(), default=df['genre'].unique()
+    )
+
+    ratings = st.sidebar.multiselect(
+        "Select MPAA Rating(s):", options=df['mpaa_rating'].unique(), default=df['mpaa_rating'].unique()
+    )
+
+    years = st.sidebar.slider(
+        "Select Year Range:",
+        int(df['year'].min()),
+        int(df['year'].max()),
+        (int(df['year'].min()), int(df['year'].max()))
+    )
+
+    filtered_df = df.copy()
+
+    gross_range = st.sidebar.slider(
+        "Select Total Gross Range:",
+        int(filtered_df['total_gross'].min()), int(filtered_df['total_gross'].max()),
+        (int(filtered_df['total_gross'].min()), int(filtered_df['total_gross'].max()))
+    )
     
-    # Center content
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        st.markdown("""
-            <div class="description-text">
-                <h2>Explore the Magic of Disney Through Data!</h2>
-                <p>Discover insights about your favorite Disney movies, from classics to modern hits.</p>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    # Metrics display
-    col1, col2, col3 = st.columns(3)
-    
-    metrics = [
-        {"label": "Total Movies", "value": "500+"},
-        {"label": "Years of Magic", "value": "95+"},
-        {"label": "Box Office", "value": "$100B+"}
+    filtered_df = filtered_df[
+        (filtered_df['genre'].isin(genres)) &
+        (filtered_df['mpaa_rating'].isin(ratings)) &
+        (filtered_df['year'].between(years[0], years[1])) &
+        (filtered_df['total_gross'] >= gross_range[0]) &
+        (filtered_df['total_gross'] <= gross_range[1])
     ]
-    
-    for col, metric in zip([col1, col2, col3], metrics):
-        with col:
-            st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">{metric['label']}</div>
-                    <div class="metric-value">{metric['value']}</div>
-                </div>
-            """, unsafe_allow_html=True)
 
-elif st.session_state["page"] == "explore":
-    st.markdown("""
-        <div class="title-container">
-            <h1 style="color: white;">Explore Data</h1>
-        </div>
-    """, unsafe_allow_html=True)
+    search_term = st.sidebar.text_input("Search Movie Title:")
+    if search_term:
+        filtered_df = filtered_df[filtered_df['movie_title'].str.contains(search_term, case=False, na=False)]
 
-elif st.session_state["page"] == "viz":
-    st.markdown("""
-        <div class="title-container">
-            <h1 style="color: white;">Visualizations</h1>
-        </div>
-    """, unsafe_allow_html=True)
+    # Display filtered data
+    st.subheader("Filtered Data")
+    if not filtered_df.empty:
+        st.dataframe(filtered_df)
+    else:
+        st.write("No data available for the selected filters.")
 
-elif st.session_state["page"] == "insights":
-    st.markdown("""
-        <div class="title-container">
-            <h1 style="color: white;">Insights</h1>
-        </div>
-    """, unsafe_allow_html=True)  
+    # Visualizations
+    if not filtered_df.empty:
+        st.subheader("Visualizations")
+
+        # 1. Total Energy Generation Visualization (Improved Stacked Area Chart)
+        st.markdown("### Total Gross by Genre Over Time")
+        if 'genre' in filtered_df.columns and 'total_gross' in filtered_df.columns:
+            fig = px.area(
+                filtered_df,
+                x='year',
+                y='total_gross',
+                color='genre',
+                line_group='genre',
+                hover_data={"total_gross": True, "genre": True},
+                title="Interactive Total Gross by Genre Over Time",
+                labels={"total_gross": "Total Gross (in Millions)", "year": "Year"}
+            )
+            fig.update_traces(mode="lines+markers", hovertemplate=None)
+            st.plotly_chart(fig)
+
+        # 2. Distribution of Movies by Genre
+        st.markdown("### Distribution of Movies by Genre")
+        fig1 = px.pie(filtered_df, names='genre', title="Distribution of Movies by Genre")
+        fig1.update_traces(textinfo='percent+label')
+        st.plotly_chart(fig1)
+
+        # 3. Total Gross Trend by Year
+        st.markdown("### Total Gross Trend by Year")
+        yearly_gross = filtered_df.groupby('year')[['total_gross']].sum().reset_index()
+        fig2 = px.line(yearly_gross, x='year', y='total_gross', title="Total Gross Trend by Year")
+        fig2.update_layout(hovermode='x unified')
+        st.plotly_chart(fig2)
+
+        # 4. Static Visualization with Year Slider
+        st.markdown("### Inflation Adjusted Gross by Year")
+        selected_year = st.slider("Select Year", int(filtered_df['year'].min()), int(filtered_df['year'].max()), int(filtered_df['year'].min()))
+        filtered_year_df = filtered_df[filtered_df['year'] == selected_year]
+
+        fig4 = px.scatter(
+            filtered_year_df,
+            x='genre',
+            y='inflation_adjusted_gross',
+            size='total_gross',
+            color='genre',
+            hover_name='movie_title',
+            title=f"Inflation Adjusted Gross for Year {selected_year}",
+        )
+        st.plotly_chart(fig4)
+
+        # 5. Barplot: Total Gross by MPAA Rating
+        st.markdown("### Total Gross by MPAA Rating")
+        rating_gross = filtered_df.groupby('mpaa_rating')[['total_gross']].sum().reset_index()
+        fig5 = px.bar(
+            rating_gross,
+            x='mpaa_rating',
+            y='total_gross',
+            color='mpaa_rating',
+            title="Total Gross by MPAA Rating",
+            labels={"total_gross": "Total Gross (in Millions)", "mpaa_rating": "MPAA Rating"}
+        )
+        fig5.update_layout(xaxis_title="MPAA Rating", yaxis_title="Total Gross")
+        st.plotly_chart(fig5)
+
+    st.markdown("---")
+    st.markdown("**Designed by [Kelompok 15]**")
+
+if __name__ == "__main__":
+    main()
+
+
+st.title("Laporan")
+st.markdown("""Visualisasi ini bertujuan untuk memenuhi tugas Visualisasi Data. Visualisasi dibuat interaktif berdasarkan dataset film Disney. Pembuatan visualisasi ini memanfaatkan streamlit dan plotly yang merupakan liblary python. Berbagai aspek data dapat di eksplorasi pengguna seperti total pendapatan berdasarkan genre, distibusi genre dan juga pendapatan disesuaikan inflasi.
+
+Alasan pembuatan desain:
+
+	1. Pada sidebar terdapat filter interaktif, ini bertujuan memudahkan pengguna untuk memfokuskan eksplorasi pada subset data tertentu. Filter interaktif ini mencakup multiselect yang dapa memungkinkan pengguna untuk memelih beberapa genre atau rating. Selain itu, ada slider yang memungkinkan eksplorasi dalam rentang tahun dan pendapatan tertentu. Kemudian, ada search bar yang memudahkan pengguna dalam mencari judul film secara spesifik.
+
+	2. Visualisasi dibuat beragam sesuai dengan fungsinya masing-masing. Pie-chart digunakan untuk menampilkan distribusi genre menggunakan persentase. Tren pendapatan genre berdasarkan waktu dapat ditampilkan menggunakan Area-chart. Line-chart yang digunakan untuk menampilkan total pendapatan pertahun. Dalam pembandingan data inflasi terhadap genre untuk tahun-tahun tertentu dapat di visualisasikan mengguhakan Scatter-plot. Kemudian yang terakhir, Bar-chart digunakan untuk menyediakan komparasi pendatapapn total berdasarkan rating MPAA.
+
+	3. Warna-warna yang di tampilkan pada visualisasi ini berbeda-beda agar lebih mudah untuk diferensiasi. Selain itu, penyesuaian pada spasi dan margin juga dilakukan guna visualisasi yang tidak padat.
+
+Proses Pengembangan:
+1. Dataset
+	Pada langkah ini, dataset dipersiapkan dengan meload dataset menggunakan Pandas. Kemudian menghandel missing value dengan mengisi data kosong dengan "Unknown" dan "Not Rated". Tidak hanya itu, konversi juga dilakukan pada kolom total_gross dan inflation_adjusted_gross menjadi nilai numerik untuk keperluan visualisasi.
+
+2. Filter
+	Filter dilakukan berdasarkan genre, rating, entang tahun, dan rentang pendapatan. Filter dibuat dengan menggunakan elemen interaktif Streamlit seperti slider dan multiselect.
+
+3. Pengimplementasian visualisasi
+	- visualisasi yang interaktif dibuat menggunakan plotly.
+	- hover tooltip digunakan pada setiap grafik agar pengguna mendapatkan informasi tambahan.
+
+4. Penyesuaian Margin dan Tata Letak:
+        - jaral antar visualisasi ditambahkan dengan st.markdown("<br>", unsafe_allow_html=True).
+
+
+Sumber:
+Library yang digunakan: Untuk antarmuka pengguna, visualisasi ini menggunakan streamlit
+Plotly Express: Untuk visualisasi.
+Pandas: digunakan untuk memanipulasi data.
+Dataset: Dataset yang digunakan merupakan dataset film Disney umum digunakan untuk analisis eksplorasi.
+    """)
